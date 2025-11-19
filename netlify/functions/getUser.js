@@ -1,35 +1,45 @@
 import { neon } from "@neondatabase/serverless";
 
-export default async (req, res) => {
+export async function handler(event) {
   try {
-    // Verifica se o utilizador enviou token no header
-    const auth = req.headers.authorization;
-
-    if (!auth || !auth.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Token não fornecido." });
+    if (event.httpMethod !== "GET") {
+      return {
+        statusCode: 405,
+        body: JSON.stringify({ error: "Método não permitido" })
+      };
     }
 
-    const token = auth.split(" ")[1];
+    const id = event.queryStringParameters.id;
 
-    // Criar ligação à BD
-    const sql = neon(process.env.DATABASE_URL);
+    if (!id) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "ID é obrigatório." })
+      };
+    }
 
-    // Procurar utilizador com base no token
-    const rows = await sql`
-      SELECT id, nome, email
-      FROM users
-      WHERE token = ${token}
-      LIMIT 1;
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
+    const user = await sql`
+      SELECT id, name, email FROM users WHERE id = ${id}
     `;
 
-    if (!rows || rows.length === 0) {
-      return res.status(401).json({ error: "Token inválido" });
+    if (user.length === 0) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: "Utilizador não encontrado." })
+      };
     }
 
-    // Utilizador encontrado
-    return res.status(200).json(rows[0]);
+    return {
+      statusCode: 200,
+      body: JSON.stringify(user[0])
+    };
 
   } catch (error) {
-    return res.status(500).json({ error: "Erro interno", details: error });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message })
+    };
   }
-};
+}

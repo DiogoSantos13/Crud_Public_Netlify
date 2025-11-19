@@ -2,7 +2,6 @@ import { neon } from "@neondatabase/serverless";
 
 export async function handler(event, context) {
   try {
-    // Só permite POST
     if (event.httpMethod !== "POST") {
       return {
         statusCode: 405,
@@ -10,14 +9,13 @@ export async function handler(event, context) {
       };
     }
 
-    // Receber JSON do fetch()
-   const body = JSON.parse(event.body);
-   const { nome, email, password } = body;
+    const body = JSON.parse(event.body);
+    const { nome, email, password } = body;
 
     if (!nome || !email || !password) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Campos incompletos." })
+        body: JSON.stringify({ error: "Todos os campos são obrigatórios." })
       };
     }
 

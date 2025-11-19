@@ -1,57 +1,66 @@
-const { createClient } = require("@supabase/supabase-js");
-const bcrypt = require("bcryptjs");
+import { neon } from "@neondatabase/serverless";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-exports.handler = async event => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method not allowed" };
-  }
-
+export async function handler(event, context) {
   try {
-    const { email, password } = JSON.parse(event.body);
+    if (event.httpMethod !== "POST") {
+      return {
+        statusCode: 405,
+        body: JSON.stringify({ error: "Método não permitido" })
+      };
+    }
+
+    const body = JSON.parse(event.body);
+    const { email, password } = body;
 
     if (!email || !password) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Campos em falta" })
+        body: JSON.stringify({ error: "Campos incompletos." })
       };
     }
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", email)
-      .limit(1)
-      .maybeSingle();
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
-    if (error || !data) {
+    const rows = await sql`
+      SELECT id, nome, email, password
+      FROM users
+      WHERE email = ${email}
+      LIMIT 1
+    `;
+
+    if (rows.length === 0) {
       return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Email ou password inválidos" })
+        statusCode: 401,
+        body: JSON.stringify({ error: "Email não encontrado." })
       };
     }
 
-    const valid = await bcrypt.compare(password, data.password_hash);
-    if (!valid) {
+    const user = rows[0];
+
+    if (user.password !== password) {
       return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Email ou password inválidos" })
+        statusCode: 401,
+        body: JSON.stringify({ error: "Password incorreta." })
       };
     }
-
-    const user = { id: data.id, name: data.name, email: data.email };
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ user })
+      body: JSON.stringify({
+        success: true,
+        message: "Login efetuado com sucesso!",
+        user: {
+          id: user.id,
+          nome: user.nome,
+          email: user.email
+        }
+      })
     };
-  } catch (err) {
+
+  } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erro no servidor" })
+      body: JSON.stringify({ error: error.message })
     };
   }
-};
+}
