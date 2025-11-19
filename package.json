@@ -7,7 +7,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
+    "@neondatabase/serverless": "^0.10.3",
     "@supabase/supabase-js": "^2.48.0",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
