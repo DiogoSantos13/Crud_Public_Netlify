@@ -1,46 +1,42 @@
-const { createClient } = require("@supabase/supabase-js");
-const bcrypt = require("bcryptjs");
+import { neon } from "@neondatabase/serverless";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-exports.handler = async event => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method not allowed" };
-  }
-
+export async function handler(event, context) {
   try {
-    const { name, email, password } = JSON.parse(event.body);
-
-    if (!name || !email || !password) {
+    // Só permite POST
+    if (event.httpMethod !== "POST") {
       return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Campos em falta" })
+        statusCode: 405,
+        body: JSON.stringify({ error: "Método não permitido" })
       };
     }
 
-    const hash = await bcrypt.hash(password, 10);
+    // Receber JSON do fetch()
+   const body = JSON.parse(event.body);
+   const { nome, email, password } = body;
 
-    const { error } = await supabase
-      .from("users")
-      .insert({ name, email, password_hash: hash });
-
-    if (error) {
+    if (!nome || !email || !password) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: error.message })
+        body: JSON.stringify({ error: "Campos incompletos." })
       };
     }
+
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
+    await sql`
+      INSERT INTO users (nome, email, password)
+      VALUES (${nome}, ${email}, ${password})
+    `;
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: "Registo ok" })
+      body: JSON.stringify({ success: true, message: "Usuário registado!" })
     };
-  } catch (err) {
+
+  } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Erro no servidor" })
+      body: JSON.stringify({ error: error.message })
     };
   }
-};
+}
